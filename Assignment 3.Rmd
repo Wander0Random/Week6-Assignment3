@@ -1,0 +1,89 @@
+---
+title: "Assignment 3"
+author: "Jiawei Zhao"
+date: "2024-06-30"
+output: word_document
+---
+
+```{r, echo=TRUE}
+library(tidyverse)
+```
+
+```{r, echo=TRUE}
+# 1.input data
+data <- read_csv("/Users/jiawei/McDaniel Study/ANA 515/Week 6/Assignment 3/StormEvents_details-ftp_v1.0_d1998_c20220425.csv")
+```
+
+```{r, echo=TRUE}
+library(dplyr)
+# 2.Select the required columns
+data <- data %>% select(BEGIN_YEARMONTH, EPISODE_ID, STATE, STATE_FIPS, CZ_NAME, CZ_TYPE, CZ_FIPS, EVENT_TYPE)
+```
+
+
+```{r, echo=TRUE}
+# 3.Arrange by state name
+data <- data %>% arrange(STATE)
+```
+
+
+```{r, echo=TRUE}
+library(stringr)
+# 4.Convert state and county names to title case
+data <- data %>% 
+  mutate(STATE = str_to_title(STATE),
+         CZ_NAME = str_to_title(CZ_NAME))
+```
+
+```{r, echo=TRUE}
+# 5.Filter for county events and remove CZ_TYPE column
+data <- data %>% 
+  filter(CZ_TYPE == "C") %>% 
+  select(-CZ_TYPE)
+```
+
+```{r, echo=TRUE}
+# 6.Pad state and county FIPS and unite into one column
+data <- data %>% 
+  mutate(STATE_FIPS = str_pad(STATE_FIPS, 2, pad = "0"),
+         CZ_FIPS = str_pad(CZ_FIPS, 3, pad = "0"),
+         FIPS = paste0(STATE_FIPS, CZ_FIPS)) %>% 
+  select(-STATE_FIPS, -CZ_FIPS)
+```
+
+```{r, echo=TRUE}
+# 7.Change all column names to lower case
+data <- data %>% rename_all(tolower)
+```
+
+```{r, echo=TRUE}
+# Load base R state data
+data("state")
+# 8.Create dataframe with state name, area, and region
+state_info <- data.frame(state = state.name, area = state.area, region = state.region)
+```
+
+```{r, echo=TRUE}
+# 9.Count number of events per state
+events_per_state <- data %>% 
+  group_by(state) %>% 
+  summarize(num_events = n())
+# Merge with state information
+merged_data <- merge(events_per_state, state_info, by.x = "state", by.y = "state")
+# Remove states not in state information dataframe
+merged_data <- merged_data %>% 
+  filter(state %in% state_info$state)
+```
+
+```{r, echo=TRUE}
+# 10.Plot number of events per state
+library(ggplot2)
+
+ggplot(merged_data, aes(x = area, y = num_events, color = region)) +
+  geom_point(size = 1, alpha = 0.7) +
+  labs(title = "Number of Storm Events per State in 1998", x = "State Area", y = "Number of Events") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  theme(legend.position = "top")
+
+```
